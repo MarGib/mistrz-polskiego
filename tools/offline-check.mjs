@@ -17,8 +17,8 @@ const cached = await page.evaluate(async () => {
 });
 await ctx.setOffline(true);
 await page.reload();
-await page.getByText('Znajdź rzeczowniki').click();
-const ok = await page.getByText('Zaznacz wszystkie').isVisible();
+await page.getByText('Poznaj: rzeczownik, czasownik, przymiotnik').click();
+const ok = await page.getByText('Pytania pomocnicze').isVisible();
 console.log(`pliki w pamięci: ${cached}, działa offline: ${ok}, błędy: ${errors.length ? errors.join('; ') : 'brak'}`);
 await browser.close();
 process.exit(ok && cached > 0 && errors.length === 0 ? 0 : 1);
