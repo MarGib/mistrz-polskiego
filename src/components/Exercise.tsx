@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Dot } from '../data/modules.ts';
 import { PARTS, type PartCode } from '../data/partsOfSpeech.ts';
 import { ORTHO_SETS } from '../data/orthography.ts';
@@ -209,8 +209,14 @@ function MarkView({ task, targetsLabel, question, onAnswer, locked }: { task: Ma
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [result, setResult] = useState<MarkResult | null>(null);
 
+  // Podwójne kliknięcie (albo szybkie dwa stuknięcia) w ten sam wyraz nie odznacza go od razu.
+  const lastTap = useRef<{ idx: number; at: number } | null>(null);
+
   function toggle(idx: number) {
     if (locked) return;
+    const now = Date.now();
+    if (lastTap.current && lastTap.current.idx === idx && now - lastTap.current.at < 400) return;
+    lastTap.current = { idx, at: now };
     setSelected((s) => {
       const n = new Set(s);
       if (n.has(idx)) n.delete(idx);

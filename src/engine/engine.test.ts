@@ -197,3 +197,9 @@ test('każdy wyraz z ortografii ma wyjaśnienie pisowni', () => {
     }
   }
 });
+
+test('nazwy odznak nie powtarzają tytułów', () => {
+  const titles = new Set(TITLES_FOR_TEST.map((t) => t.name));
+  for (const b of BADGES) assert.ok(!titles.has(b.name), `odznaka „${b.name}” ma nazwę tytułu`);
+});
+import { TITLES as TITLES_FOR_TEST } from './points.ts';

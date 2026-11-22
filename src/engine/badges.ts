@@ -28,7 +28,7 @@ export const BADGES: Badge[] = [
   { id: 'm1', emoji: '🥉', name: 'Moduł 1 zaliczony', how: 'Zalicz wszystkie kropki modułu 1.', earned: passedAll(ALL_DOTS.filter((d) => d.id.startsWith('m1-')).map((d) => d.id)) },
   { id: 'm2', emoji: '🥈', name: 'Moduł 2 zaliczony', how: 'Zalicz wszystkie kropki modułu 2.', earned: passedAll(ALL_DOTS.filter((d) => d.id.startsWith('m2-')).map((d) => d.id)) },
   { id: 'm3', emoji: '🥇', name: 'Moduł 3 zaliczony', how: 'Zalicz wszystkie kropki modułu 3.', earned: passedAll(ALL_DOTS.filter((d) => d.id.startsWith('m3-')).map((d) => d.id)) },
-  { id: 'master', emoji: '👑', name: 'Mistrz Słowa', how: 'Zalicz całą ścieżkę: wszystkie moduły i ortografię.', earned: passedAll(ALL_DOTS.map((d) => d.id)) },
+  { id: 'master', emoji: '🗺️', name: 'Cała ścieżka', how: 'Zalicz całą ścieżkę: wszystkie moduły i ortografię.', earned: passedAll(ALL_DOTS.map((d) => d.id)) },
 ];
 
 export function longestStreak(p: Progress): number {
