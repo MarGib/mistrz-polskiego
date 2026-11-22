@@ -1,6 +1,6 @@
 # 📚 Mistrz Polskiego
 
-Trener gramatyki i ortografii języka polskiego dla klas 4–8. Siostrzana aplikacja [Mistrza Tabliczki](https://github.com/MarGib/Mistrz-Tabliczki---Konkursowy-trener-mno-enia-i-dzielenia): ścieżka z kropkami, gry i grupy.
+Trener gramatyki i ortografii języka polskiego dla klas 4–8. Siostrzana aplikacja [Mistrza Tabliczki](https://github.com/MarGib/Mistrz-Tabliczki---Konkursowy-trener-mno-enia-i-dzielenia): ścieżka z kropkami i gry.
 
 Główne zadanie to **zaznaczanie słów w prawdziwym zdaniu**, a nie wkuwanie definicji.
 
@@ -12,7 +12,16 @@ Główne zadanie to **zaznaczanie słów w prawdziwym zdaniu**, a nie wkuwanie d
 
 ## Pierwsza wersja
 
-Moduły 1–3 (rzeczownik, czasownik, przymiotnik → liczebnik, przysłówek → zaimek, przyimek) oraz ó/u i rz/ż. Trzy typy zadań: zaznacz w zdaniu, wybór, luka. Bank zdań w pliku, działa offline.
+Moduły 1–3 (rzeczownik, czasownik, przymiotnik → liczebnik, przysłówek → zaimek, przyimek) oraz ó/u i rz/ż. Trzy typy zadań: zaznacz w zdaniu, wybór, luka. Bank zdań w pliku.
+
+**Wszystko działa na telefonie użytkownika:**
+
+- bez zewnętrznej bazy danych i bez kont,
+- postęp zapisany tylko w pamięci urządzenia,
+- bez porównywania wyników z innymi i bez grup,
+- działa offline po pierwszym otwarciu.
+
+Funkcje społeczne (grupy, ranking, wspólne konto z Tabliczką) mogą przyjść później, ale nie w pierwszej wersji.
 
 ## Stan
 
