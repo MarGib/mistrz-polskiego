@@ -7,7 +7,11 @@ export type Dot =
   | { id: string; kind: 'learn'; title: string; lessons: LessonId[] }
   | { id: string; kind: 'mark'; title: string; targets: PartCode[] }
   | { id: string; kind: 'choose'; title: string; ask: PartCode[]; options: PartCode[] }
-  | { id: string; kind: 'gap'; title: string; set: OrthoSetId };
+  | { id: string; kind: 'gap'; title: string; set: OrthoSetId }
+  | { id: string; kind: 'training'; title: string };
+
+/** Trening słabych stron: zadania dobiera silnik z pamięci błędów (nie ma go na ścieżce). */
+export const TRAINING_DOT: Dot = { id: 'training', kind: 'training', title: 'Trening słabych stron' };
 
 /** `independent`: pierwsza kropka modułu jest otwarta od razu (nie czeka na poprzedni moduł). */
 export type Module = { id: string; title: string; emoji: string; independent?: boolean; dots: Dot[] };
@@ -72,5 +76,6 @@ export function lessonsFor(dot: Dot): LessonId[] {
     case 'mark': return dot.targets;
     case 'choose': return dot.options;
     case 'gap': return [dot.set];
+    case 'training': return [];
   }
 }

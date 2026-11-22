@@ -26,14 +26,19 @@ Nie dodawaj Firebase ani żadnych zapytań do serwerów bez wyraźnej decyzji Ma
 | Ortografia (`g[ó]ra`) | `src/data/orthography.ts` |
 | Moduły i kropki | `src/data/modules.ts` |
 | Silnik: parser, serie, sprawdzanie, ścieżka | `src/engine/parse.ts`, `series.ts`, `path.ts` |
-| Zapis postępu na urządzeniu | `src/engine/storage.ts` |
-| Ekrany | `src/components/Home.tsx`, `Exercise.tsx`, `Stats.tsx` |
+| Zapis postępu na urządzeniu | `src/engine/storage.ts` (migracja: brakujące pola uzupełnia `emptyProgress`) |
+| Pamięć zdań/wyrazów (powtórki, pudełka Leitnera) | `src/engine/memory.ts` |
+| Trening słabych stron | `src/engine/training.ts` |
+| Punkty i tytuły (Mistrz Słowa) | `src/engine/points.ts` |
+| Odznaki | `src/engine/badges.ts` |
+| Ekrany | `src/components/Home.tsx`, `Exercise.tsx`, `Stats.tsx` (postępy, wykres dni, pomyłki, gablota odznak) |
 | Wiedza „Poznaj” | `src/data/lessons.ts`, `components/LessonCard.tsx`, `Learn.tsx`, `Knowledge.tsx` |
 | PWA: offline, nowa wersja, instalacja | `public/sw.js` (build wpisuje wersję i listę plików), `src/pwa.ts`, `components/PwaBanners.tsx` |
 
 ## Treści
 
 - Każde zdanie musi być jednoznaczne dla ucznia klas 4–6. Unikamy „się” i wyrazów, które podręczniki klasyfikują różnie.
+- **Nowe zdania i wyrazy dopisuj NA KOŃCU banku.** Zadania mają identyfikatory z numerem zdania/wyrazu (`m:12:R`, `g:o-u:3`), po których zapisujemy pamięć i błędy ucznia. Wstawienie w środek przestawi numery.
 - Test `src/engine/engine.test.ts` pilnuje, że każdy wyraz ma kod i że każda kropka ma pełną serię (8 zadań).
 - Nowe treści robione z AI przegląda człowiek, zanim trafią do aplikacji.
 

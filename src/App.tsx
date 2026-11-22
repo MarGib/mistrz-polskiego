@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { Dot } from './data/modules.ts';
+import { TRAINING_DOT, type Dot } from './data/modules.ts';
+import { buildTraining } from './engine/training.ts';
+import type { Task } from './engine/series.ts';
 import { LESSONS, type LessonId } from './data/lessons.ts';
 import { loadProgress, recordSeries, requestPersistentStorage, saveProgress, type Progress } from './engine/storage.ts';
 import Home from './components/Home.tsx';
@@ -11,7 +13,7 @@ import { UpdateBanner } from './components/PwaBanners.tsx';
 
 type Screen =
   | { name: 'home' }
-  | { name: 'dot'; dot: Dot }
+  | { name: 'dot'; dot: Dot; tasks?: Task[] }
   | { name: 'stats' }
   | { name: 'knowledge' }
   | { name: 'lesson'; id: LessonId };
@@ -39,6 +41,7 @@ export default function App() {
           onPlay={(dot) => setScreen({ name: 'dot', dot })}
           onStats={() => setScreen({ name: 'stats' })}
           onKnowledge={() => setScreen({ name: 'knowledge' })}
+          onTraining={() => setScreen({ name: 'dot', dot: TRAINING_DOT, tasks: buildTraining(progress) })}
         />
       )}
       {screen.name === 'dot' && screen.dot.kind === 'learn' && (
@@ -55,7 +58,7 @@ export default function App() {
         />
       )}
       {screen.name === 'dot' && screen.dot.kind !== 'learn' && (
-        <Exercise key={screen.dot.id} dot={screen.dot} progress={progress} onFinish={setProgress} onExit={home} />
+        <Exercise key={screen.dot.id} dot={screen.dot} tasks={screen.tasks} progress={progress} onFinish={setProgress} onExit={home} />
       )}
       {screen.name === 'stats' && <Stats progress={progress} onReset={setProgress} onBack={home} />}
       {screen.name === 'knowledge' && <Knowledge onOpen={(id) => setScreen({ name: 'lesson', id })} onBack={home} />}

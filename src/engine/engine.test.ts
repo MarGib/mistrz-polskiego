@@ -47,7 +47,7 @@ test('parseGapWord', () => {
 
 test('checkMark rozróżnia trafione, pominięte i błędne', () => {
   const tokens = parseSentence('Mały|P kot|R śpi|C na|Pi kanapie|R .');
-  const task: MarkTask = { kind: 'mark', tokens, targets: new Set([1, 4]) };
+  const task: MarkTask = { kind: 'mark', item: 'test', tokens, targets: new Set([1, 4]), parts: ['R'] };
   assert.equal(checkMark(task, new Set([1, 4])).correct, true);
   const r = checkMark(task, new Set([1, 2]));
   assert.equal(r.correct, false);
@@ -105,4 +105,83 @@ test('wybór: wyróżniony wyraz ma właściwą część mowy, zdania się nie p
       assert.ok(new Set(series.map((t) => (t.kind === 'choose' ? t.answer : ''))).size >= 2);
     }
   }
+});
+
+import { taskFromItem } from './series.ts';
+import { reviewItem, isWeak } from './memory.ts';
+import { pointsFor, titleFor } from './points.ts';
+import { buildTraining, weakItems } from './training.ts';
+import { BADGES, longestStreak, newBadges } from './badges.ts';
+import { streakDays } from './storage.ts';
+
+test('każde zadanie da się odtworzyć z identyfikatora (trening)', () => {
+  for (const dot of ALL_DOTS) {
+    for (const t of buildSeries(dot)) {
+      const back = taskFromItem(t.item);
+      assert.ok(back, `nie da się odtworzyć ${t.item}`);
+      assert.equal(back.item, t.item);
+    }
+  }
+  assert.equal(taskFromItem('m:9999:R'), null);
+  assert.equal(taskFromItem('śmieci'), null);
+});
+
+test('pamięć: błąd wraca do pudełka 0, dobra odpowiedź przesuwa wyżej', () => {
+  const now = new Date('2026-11-22T10:00:00');
+  let s = reviewItem(undefined, false, now);
+  assert.equal(s.box, 0);
+  assert.ok(isWeak(s));
+  s = reviewItem(s, true, now);
+  s = reviewItem(s, true, now);
+  s = reviewItem(s, true, now);
+  assert.equal(s.box, 3);
+  assert.ok(!isWeak(s));
+  assert.equal(new Date(s.due).getDate(), 26); // pudełko 3 = 4 dni
+});
+
+test('punkty: 10 za dobrą, bonus za serię dobrych i za 8/8', () => {
+  const ok = { key: 'R', ok: true };
+  const bad = { key: 'R', ok: false };
+  assert.equal(pointsFor([ok, ok, ok], false), 35);
+  assert.equal(pointsFor([ok, bad, ok], false), 20);
+  assert.equal(pointsFor(Array(8).fill(ok), true), 80 + 30 + 20);
+  assert.equal(titleFor(0).name, 'Nowicjusz');
+  assert.equal(titleFor(5000).name, 'Mistrz Słowa');
+  assert.equal(titleFor(250).toNext, 50);
+});
+
+test('trening słabych stron: błędy trafiają do treningu, poprawione z niego znikają', () => {
+  const series = buildSeries(ALL_DOTS.find((d) => d.id === 'm1-r')!);
+  const now = new Date('2026-11-22T10:00:00');
+  let p = recordSeries(emptyProgress(), 'm1-r', 6, 6, series.map((t, i) => ({ item: t.item, key: 'R', ok: i >= 2 })), now);
+  assert.equal(weakItems(p).length, 2);
+  const tr = buildTraining(p, now);
+  assert.equal(tr.length, 2);
+  for (let k = 0; k < 3; k++) {
+    p = recordSeries(p, 'training', 2, 0, tr.map((t) => ({ item: t.item, key: 'R', ok: true, training: true })), now);
+  }
+  assert.equal(weakItems(p).length, 0);
+  assert.equal(buildTraining(p, now).length, 0);
+  assert.equal(p.fixed, 6);
+});
+
+test('dni z rzędu i odznaki', () => {
+  const p = emptyProgress();
+  for (const d of ['2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22']) p.days[d] = { answers: 8, ok: 8 };
+  assert.equal(streakDays(p, new Date('2026-11-22T20:00:00')), 4);
+  assert.equal(streakDays(p, new Date('2026-11-23T08:00:00')), 4); // dziś jeszcze nie ćwiczył
+  assert.equal(streakDays(p, new Date('2026-11-25T08:00:00')), 0);
+  assert.equal(longestStreak(p), 4);
+  const after = recordSeries(emptyProgress(), 'm1-r', 8, 6, Array(8).fill({ key: 'R', ok: true }));
+  const got = newBadges(emptyProgress(), after).map((b) => b.id);
+  assert.ok(got.includes('first') && got.includes('perfect'));
+  assert.equal(new Set(BADGES.map((b) => b.id)).size, BADGES.length);
+});
+
+test('stary zapis (bez nowych pól) wczytuje się bez błędu', () => {
+  const mem = new Map([[STORAGE_KEY, JSON.stringify({ dots: { 'm1-r': { best: 7, passed: true, plays: 1 } }, stats: {}, history: [] })]]);
+  const p = loadProgress({ getItem: (k: string) => mem.get(k) ?? null });
+  assert.equal(p.points, 0);
+  assert.deepEqual(p.items, {});
+  assert.equal(p.dots['m1-r'].passed, true);
 });

@@ -1,51 +1,100 @@
 import { useMemo, useState } from 'react';
-import { lessonsFor, type Dot } from '../data/modules.ts';
+import type { Dot } from '../data/modules.ts';
 import { PARTS, type PartCode } from '../data/partsOfSpeech.ts';
 import { ORTHO_SETS } from '../data/orthography.ts';
-import { buildSeries, checkMark, PASS_SCORE, SERIES_LENGTH, type ChooseTask, type GapTask, type MarkResult, type MarkTask } from '../engine/series.ts';
-import { recordSeries, type Progress } from '../engine/storage.ts';
+import type { LessonId } from '../data/lessons.ts';
+import {
+  buildSeries,
+  checkMark,
+  lessonsForTask,
+  PASS_SCORE,
+  statKeyOf,
+  type ChooseTask,
+  type GapTask,
+  type MarkResult,
+  type MarkTask,
+  type Task,
+} from '../engine/series.ts';
+import { recordSeries, type AnswerRecord, type Progress } from '../engine/storage.ts';
+import { pointsFor } from '../engine/points.ts';
+import { newBadges, type Badge } from '../engine/badges.ts';
 import Learn from './Learn.tsx';
 
-type Props = { dot: Dot; progress: Progress; onFinish: (p: Progress) => void; onExit: () => void };
-type Answer = { key: string; ok: boolean };
+type Props = {
+  dot: Dot;
+  progress: Progress;
+  /** Gotowe zadania (trening słabych stron). Bez nich seria jest losowana dla kropki. */
+  tasks?: Task[];
+  onFinish: (p: Progress) => void;
+  onExit: () => void;
+};
 
-export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
-  const tasks = useMemo(() => buildSeries(dot), [dot]);
+export default function Exercise({ dot, progress, tasks: given, onFinish, onExit }: Props) {
+  const tasks = useMemo(() => given ?? buildSeries(dot), [dot, given]);
+  const training = dot.kind === 'training';
   const [i, setI] = useState(0);
-  const [answers, setAnswers] = useState<Answer[]>([]);
-  const [done, setDone] = useState(false);
+  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
+  const [done, setDone] = useState<null | { gained: number; badges: Badge[]; before: Progress }>(null);
   const [showHelp, setShowHelp] = useState(false);
 
-  const statKey = dot.kind === 'mark' ? dot.targets.join('+') : dot.kind === 'gap' ? dot.set : '';
   const score = answers.filter((a) => a.ok).length;
+  const live = answers.length ? pointsFor(answers, false) : 0;
 
-  function answered(ok: boolean, key = statKey) {
-    setAnswers((a) => [...a, { key, ok }]);
+  function answered(ok: boolean, picked?: string) {
+    const task = tasks[i];
+    setAnswers((a) => [...a, { item: task.item, key: statKeyOf(task), ok, picked, training }]);
   }
   function next() {
     if (i + 1 < tasks.length) {
       setI(i + 1);
     } else {
-      onFinish(recordSeries(progress, dot.id, score, PASS_SCORE, answers));
-      setDone(true);
+      const after = recordSeries(progress, dot.id, score, training ? 0 : PASS_SCORE, answers);
+      onFinish(after);
+      setDone({ gained: after.points - progress.points, badges: newBadges(progress, after), before: progress });
     }
   }
 
   if (showHelp) {
-    return <Learn title="Przypomnienie" lessons={lessonsFor(dot)} doneLabel="Wracam do zadań" onDone={() => setShowHelp(false)} onExit={() => setShowHelp(false)} />;
+    return (
+      <Learn
+        title="Przypomnienie"
+        lessons={lessonsForTask(tasks[i]) as LessonId[]}
+        doneLabel="Wracam do zadań"
+        onDone={() => setShowHelp(false)}
+        onExit={() => setShowHelp(false)}
+      />
+    );
   }
 
   if (done) {
-    const passed = score >= PASS_SCORE;
+    const passed = training || score >= PASS_SCORE;
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <div className="text-6xl">{score === SERIES_LENGTH ? '🏆' : passed ? '🎉' : '💪'}</div>
-        <h2 className="text-2xl font-bold">
-          {score}/{SERIES_LENGTH}
+        <div className="text-6xl">{score === tasks.length ? '🏆' : score >= Math.ceil(tasks.length * 0.75) ? '🎉' : '💪'}</div>
+        <h2 className="text-3xl font-bold">
+          {score}/{tasks.length}
         </h2>
+        <div className="rounded-full bg-amber-100 px-4 py-1.5 text-lg font-bold text-amber-800">⭐ +{done.gained} pkt</div>
         <p className="text-stone-600">
-          {passed ? 'Brawo! Kropka zaliczona.' : `Do zaliczenia potrzeba ${PASS_SCORE}. Zajrzyj do wiedzy i spróbuj jeszcze raz!`}
+          {training
+            ? score === tasks.length
+              ? 'Wszystkie słabe strony poprawione!'
+              : score === 0
+                ? 'Nie szkodzi! Zajrzyj do 📖 wiedzy. Te zadania wrócą w kolejnym treningu.'
+                : 'Dobra robota! To, co jeszcze nie wyszło, wróci w kolejnym treningu.'
+            : passed
+              ? 'Brawo! Kropka zaliczona.'
+              : `Do zaliczenia potrzeba ${PASS_SCORE}. Zajrzyj do wiedzy i spróbuj jeszcze raz!`}
         </p>
+        {done.badges.map((b) => (
+          <div key={b.id} className="flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-amber-100 to-rose-100 p-4 text-left ring-1 ring-amber-300">
+            <span className="text-4xl">{b.emoji}</span>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide text-amber-700">Nowa odznaka!</div>
+              <div className="text-lg font-bold">{b.name}</div>
+            </div>
+          </div>
+        ))}
         <button onClick={onExit} className="mt-2 w-full rounded-2xl bg-rose-600 py-4 text-lg font-bold text-white active:scale-[0.98]">
           Wróć do ścieżki
         </button>
@@ -58,8 +107,8 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="mb-4 flex items-center gap-3">
-        <button onClick={onExit} aria-label="Zamknij" className="rounded-lg px-2 py-1 text-2xl text-stone-400 active:scale-90">
+      <div className="mb-4 flex items-center gap-2.5">
+        <button onClick={onExit} aria-label="Zamknij" className="rounded-lg px-1.5 py-1 text-2xl text-stone-400 active:scale-90">
           ✕
         </button>
         <div className="h-3 flex-1 overflow-hidden rounded-full bg-stone-200">
@@ -68,18 +117,27 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
         <span className="text-sm font-semibold text-stone-500">
           {i + 1}/{tasks.length}
         </span>
+        <span className="min-w-[3.5rem] rounded-full bg-amber-100 px-2 py-1 text-center text-sm font-bold text-amber-800" aria-label="Punkty w tej serii">
+          ⭐ {live}
+        </span>
         <button onClick={() => setShowHelp(true)} aria-label="Przypomnij wiedzę" className="rounded-full bg-sky-100 px-2.5 py-1 text-sm font-bold text-sky-800 active:scale-90">
           📖
         </button>
       </div>
+      {training && <p className="-mt-2 mb-3 text-sm font-semibold text-rose-700">🎯 Trening słabych stron</p>}
 
-      {task.kind === 'mark' && dot.kind === 'mark' && (
-        <MarkView key={i} task={task} targetsLabel={dot.targets.map((t) => PARTS[t].plural).join(' i ')} question={dot.targets.map((t) => PARTS[t].question).join(' / ')} onAnswer={answered} locked={answeredThis} />
+      {task.kind === 'mark' && (
+        <MarkView
+          key={i}
+          task={task}
+          targetsLabel={task.parts.map((t) => PARTS[t].plural).join(' i ')}
+          question={task.parts.map((t) => PARTS[t].question).join(' / ')}
+          onAnswer={(ok) => answered(ok)}
+          locked={answeredThis}
+        />
       )}
-      {task.kind === 'choose' && <ChooseView key={i} task={task} onAnswer={(ok) => answered(ok, task.answer)} locked={answeredThis} />}
-      {task.kind === 'gap' && dot.kind === 'gap' && (
-        <GapView key={i} task={task} rule={ORTHO_SETS[dot.set].rule} onAnswer={answered} locked={answeredThis} />
-      )}
+      {task.kind === 'choose' && <ChooseView key={i} task={task} onAnswer={(ok, picked) => answered(ok, picked)} locked={answeredThis} />}
+      {task.kind === 'gap' && <GapView key={i} task={task} rule={ORTHO_SETS[task.set].rule} onAnswer={(ok) => answered(ok)} locked={answeredThis} />}
 
       {answeredThis && (
         <button onClick={next} className="mt-auto w-full rounded-2xl bg-stone-900 py-4 text-lg font-bold text-white active:scale-[0.98]">
@@ -90,7 +148,7 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
   );
 }
 
-function ChooseView({ task, onAnswer, locked }: { task: ChooseTask; onAnswer: (ok: boolean) => void; locked: boolean }) {
+function ChooseView({ task, onAnswer, locked }: { task: ChooseTask; onAnswer: (ok: boolean, picked: string) => void; locked: boolean }) {
   const [picked, setPicked] = useState<PartCode | null>(null);
   const ok = picked === task.answer;
   const word = task.tokens[task.index].text;
@@ -98,7 +156,7 @@ function ChooseView({ task, onAnswer, locked }: { task: ChooseTask; onAnswer: (o
   function pick(o: PartCode) {
     if (locked || picked) return;
     setPicked(o);
-    onAnswer(o === task.answer);
+    onAnswer(o === task.answer, o);
   }
 
   return (

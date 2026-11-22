@@ -1,31 +1,69 @@
 import { MODULES, type Dot } from '../data/modules.ts';
 import { isUnlocked } from '../engine/path.ts';
 import { SERIES_LENGTH } from '../engine/series.ts';
-import type { Progress } from '../engine/storage.ts';
+import { streakDays, type Progress } from '../engine/storage.ts';
+import { titleFor } from '../engine/points.ts';
+import { weakItems } from '../engine/training.ts';
 import { InstallCard } from './PwaBanners.tsx';
 
-type Props = { progress: Progress; onPlay: (dot: Dot) => void; onStats: () => void; onKnowledge: () => void };
+type Props = { progress: Progress; onPlay: (dot: Dot) => void; onStats: () => void; onKnowledge: () => void; onTraining: () => void };
 
-export default function Home({ progress, onPlay, onStats, onKnowledge }: Props) {
+export default function Home({ progress, onPlay, onStats, onKnowledge, onTraining }: Props) {
+  const title = titleFor(progress.points);
+  const streak = streakDays(progress);
+  const weak = weakItems(progress).length;
+
   return (
     <>
-      <header className="mb-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="./icon.svg" alt="" className="h-11 w-11 rounded-xl" />
-          <div>
-            <h1 className="text-xl font-bold leading-tight">Mistrz Polskiego</h1>
-            <p className="text-sm text-stone-500">gramatyka i ortografia</p>
+      <header className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <img src="./icon.svg" alt="" className="h-10 w-10 shrink-0 rounded-xl" />
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-bold leading-tight">Mistrz Polskiego</h1>
+            <p className="truncate text-xs text-stone-500">gramatyka i ortografia</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={onKnowledge} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
-            📖 Wiedza
+        <div className="flex shrink-0 gap-1.5">
+          <button onClick={onKnowledge} className="flex flex-col items-center rounded-xl bg-white px-2.5 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
+            <span className="text-lg leading-none">📖</span>Wiedza
           </button>
-          <button onClick={onStats} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
-            📊 Wyniki
+          <button onClick={onStats} className="flex flex-col items-center rounded-xl bg-white px-2.5 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
+            <span className="text-lg leading-none">📊</span>Postępy
           </button>
         </div>
       </header>
+
+      <button onClick={onStats} className="mb-4 w-full rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-stone-200 active:scale-[0.99]">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">{title.emoji}</span>
+          <div className="flex-1">
+            <div className="font-bold">{title.name}</div>
+            <div className="text-sm text-stone-500">
+              {title.next ? `${title.toNext} pkt do tytułu „${title.next.name}”` : 'Najwyższy tytuł zdobyty!'}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-lg font-bold text-amber-600">⭐ {progress.points}</div>
+            <div className="text-sm font-semibold text-orange-600">{streak > 0 ? `🔥 ${streak} ${streak === 1 ? 'dzień' : 'dni'}` : '🔥 0'}</div>
+          </div>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-200">
+          <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-rose-500" style={{ width: `${Math.round(title.progress * 100)}%` }} />
+        </div>
+      </button>
+
+      {weak > 0 && (
+        <button onClick={onTraining} className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-rose-600 p-4 text-left text-white shadow-md active:scale-[0.99]">
+          <span className="text-3xl">🎯</span>
+          <div className="flex-1">
+            <div className="font-bold">Trening słabych stron</div>
+            <div className="text-sm text-rose-100">
+              {weak} {weak === 1 ? 'rzecz' : weak < 5 ? 'rzeczy' : 'rzeczy'} do poprawienia. Ćwicz to, co jeszcze nie wychodzi.
+            </div>
+          </div>
+          <span className="text-2xl">›</span>
+        </button>
+      )}
 
       <InstallCard />
 
