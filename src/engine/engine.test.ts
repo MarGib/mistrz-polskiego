@@ -185,3 +185,15 @@ test('stary zapis (bez nowych pól) wczytuje się bez błędu', () => {
   assert.deepEqual(p.items, {});
   assert.equal(p.dots['m1-r'].passed, true);
 });
+
+import { ORTHO_HINTS } from '../data/orthoHints.ts';
+
+test('każdy wyraz z ortografii ma wyjaśnienie pisowni', () => {
+  for (const set of Object.values(ORTHO_SETS)) {
+    for (const w of set.words) {
+      const g = parseGapWord(w);
+      const whole = g.before + g.answer + g.after;
+      assert.ok(ORTHO_HINTS[whole], `brak wyjaśnienia dla „${whole}”`);
+    }
+  }
+});

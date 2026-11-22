@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Dot } from '../data/modules.ts';
 import { PARTS, type PartCode } from '../data/partsOfSpeech.ts';
 import { ORTHO_SETS } from '../data/orthography.ts';
+import { ORTHO_HINTS } from '../data/orthoHints.ts';
 import type { LessonId } from '../data/lessons.ts';
 import {
   buildSeries,
@@ -273,6 +274,8 @@ function MarkView({ task, targetsLabel, question, onAnswer, locked }: { task: Ma
 function GapView({ task, rule, onAnswer, locked }: { task: GapTask; rule: string; onAnswer: (ok: boolean) => void; locked: boolean }) {
   const [picked, setPicked] = useState<string | null>(null);
   const ok = picked === task.word.answer;
+  const whole = task.word.before + task.word.answer + task.word.after;
+  const hint = ORTHO_HINTS[whole] ?? rule;
 
   function pick(o: string) {
     if (locked || picked) return;
@@ -282,30 +285,42 @@ function GapView({ task, rule, onAnswer, locked }: { task: GapTask; rule: string
 
   return (
     <div className="mb-4 flex flex-col gap-6">
-      <h2 className="text-lg font-bold">Wpisz brakującą literę</h2>
-      <p className="text-center text-5xl font-bold tracking-wide">
+      <h2 className="text-lg font-bold">Wybierz brakującą literę</h2>
+      <p className="text-center text-5xl font-bold">
         {task.word.before}
-        <span className={`mx-0.5 inline-block min-w-[1.2em] rounded-lg border-b-4 px-1 ${picked ? (ok ? 'border-emerald-500 text-emerald-600' : 'border-red-500 text-red-600') : 'border-rose-400 text-rose-300'}`}>
-          {picked ? task.word.answer : '_'}
-        </span>
+        {picked ? (
+          <span className="rounded-md bg-emerald-100 text-emerald-600">{task.word.answer}</span>
+        ) : (
+          <span className="inline-block min-w-[0.9em] border-b-4 border-rose-400 text-transparent">{task.word.answer}</span>
+        )}
         {task.word.after}
       </p>
       <div className="grid grid-cols-2 gap-3">
-        {task.options.map((o) => (
-          <button
-            key={o}
-            onClick={() => pick(o)}
-            className={`rounded-2xl py-5 text-3xl font-bold shadow-sm ring-1 transition active:scale-95 ${
-              picked === o ? (ok ? 'bg-emerald-500 text-white ring-emerald-500' : 'bg-red-500 text-white ring-red-500') : 'bg-white ring-stone-300'
-            }`}
-          >
-            {o}
-          </button>
-        ))}
+        {task.options.map((o) => {
+          const state = !picked ? 'idle' : o === task.word.answer ? 'right' : o === picked ? 'wrong' : 'idle';
+          return (
+            <button
+              key={o}
+              onClick={() => pick(o)}
+              className={`rounded-2xl py-5 text-3xl font-bold shadow-sm ring-1 transition active:scale-95 ${
+                state === 'right'
+                  ? 'bg-emerald-500 text-white ring-emerald-500'
+                  : state === 'wrong'
+                    ? 'bg-red-500 text-white line-through ring-red-500'
+                    : picked
+                      ? 'bg-white text-stone-300 ring-stone-200'
+                      : 'bg-white ring-stone-300'
+              }`}
+            >
+              {o}
+            </button>
+          );
+        })}
       </div>
       {picked && (
-        <div className={`rounded-xl p-3 ${ok ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>
-          {ok ? '✅ Dobrze!' : <><b>Poprawnie: {task.word.before}{task.word.answer}{task.word.after}.</b> {rule}</>}
+        <div className={`rounded-xl p-3 ${ok ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-950'}`}>
+          <b>{ok ? '✅ Dobrze! ' : `Poprawnie: ${whole}. `}</b>
+          {hint}
         </div>
       )}
     </div>
