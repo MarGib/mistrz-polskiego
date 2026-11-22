@@ -1,6 +1,7 @@
 import { SENTENCES } from '../data/sentences.ts';
 import { ORTHO_SETS } from '../data/orthography.ts';
 import type { Dot } from '../data/modules.ts';
+import type { PartCode } from '../data/partsOfSpeech.ts';
 import { parseGapWord, parseSentence, type GapWord, type Token } from './parse.ts';
 
 export const SERIES_LENGTH = 8;
@@ -8,8 +9,9 @@ export const SERIES_LENGTH = 8;
 export const PASS_SCORE = 6;
 
 export type MarkTask = { kind: 'mark'; tokens: Token[]; targets: Set<number> };
+export type ChooseTask = { kind: 'choose'; tokens: Token[]; index: number; answer: PartCode; options: PartCode[] };
 export type GapTask = { kind: 'gap'; word: GapWord; options: readonly string[] };
-export type Task = MarkTask | GapTask;
+export type Task = MarkTask | ChooseTask | GapTask;
 
 function shuffle<T>(arr: T[], rnd: () => number): T[] {
   const a = [...arr];
@@ -20,8 +22,41 @@ function shuffle<T>(arr: T[], rnd: () => number): T[] {
   return a;
 }
 
-/** Losuje serię zadań dla kropki. */
+/**
+ * „Wybór”: wyróżniony wyraz w zdaniu, uczeń wskazuje część mowy.
+ * Części mowy z `ask` pojawiają się na zmianę (przeplatanie), każde zdanie najwyżej raz w serii.
+ */
+function buildChoose(ask: PartCode[], options: PartCode[], rnd: () => number): ChooseTask[] {
+  const sentences = shuffle(SENTENCES.map(parseSentence), rnd);
+  const queues = new Map<PartCode, { tokens: Token[]; index: number }[]>();
+  for (const part of ask) queues.set(part, []);
+  for (const tokens of sentences) {
+    tokens.forEach((t, index) => {
+      if (t.part && queues.has(t.part)) queues.get(t.part)!.push({ tokens, index });
+    });
+  }
+  for (const [k, q] of queues) queues.set(k, shuffle(q, rnd));
+  const used = new Set<Token[]>();
+  const out: ChooseTask[] = [];
+  const order = shuffle(ask, rnd);
+  for (let round = 0; out.length < SERIES_LENGTH && round < 50; round++) {
+    for (const part of order) {
+      if (out.length >= SERIES_LENGTH) break;
+      const q = queues.get(part)!;
+      const pickIdx = q.findIndex((c) => !used.has(c.tokens));
+      if (pickIdx === -1) continue;
+      const [c] = q.splice(pickIdx, 1);
+      used.add(c.tokens);
+      out.push({ kind: 'choose', tokens: c.tokens, index: c.index, answer: part, options });
+    }
+  }
+  return shuffle(out, rnd);
+}
+
+/** Losuje serię zadań dla kropki. Kropka „learn” nie ma zadań. */
 export function buildSeries(dot: Dot, rnd: () => number = Math.random): Task[] {
+  if (dot.kind === 'learn') return [];
+  if (dot.kind === 'choose') return buildChoose(dot.ask, dot.options, rnd);
   if (dot.kind === 'mark') {
     const pool = SENTENCES.map(parseSentence)
       .map((tokens) => ({

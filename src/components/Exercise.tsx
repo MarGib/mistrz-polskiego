@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import type { Dot } from '../data/modules.ts';
-import { PARTS } from '../data/partsOfSpeech.ts';
+import { lessonsFor, type Dot } from '../data/modules.ts';
+import { PARTS, type PartCode } from '../data/partsOfSpeech.ts';
 import { ORTHO_SETS } from '../data/orthography.ts';
-import { buildSeries, checkMark, PASS_SCORE, SERIES_LENGTH, type GapTask, type MarkResult, type MarkTask } from '../engine/series.ts';
+import { buildSeries, checkMark, PASS_SCORE, SERIES_LENGTH, type ChooseTask, type GapTask, type MarkResult, type MarkTask } from '../engine/series.ts';
 import { recordSeries, type Progress } from '../engine/storage.ts';
+import Learn from './Learn.tsx';
 
 type Props = { dot: Dot; progress: Progress; onFinish: (p: Progress) => void; onExit: () => void };
 type Answer = { key: string; ok: boolean };
@@ -13,12 +14,13 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
   const [i, setI] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [done, setDone] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const statKey = dot.kind === 'mark' ? dot.targets.join('+') : dot.set;
+  const statKey = dot.kind === 'mark' ? dot.targets.join('+') : dot.kind === 'gap' ? dot.set : '';
   const score = answers.filter((a) => a.ok).length;
 
-  function answered(ok: boolean) {
-    setAnswers((a) => [...a, { key: statKey, ok }]);
+  function answered(ok: boolean, key = statKey) {
+    setAnswers((a) => [...a, { key, ok }]);
   }
   function next() {
     if (i + 1 < tasks.length) {
@@ -27,6 +29,10 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
       onFinish(recordSeries(progress, dot.id, score, PASS_SCORE, answers));
       setDone(true);
     }
+  }
+
+  if (showHelp) {
+    return <Learn title="Przypomnienie" lessons={lessonsFor(dot)} doneLabel="Wracam do zadań" onDone={() => setShowHelp(false)} onExit={() => setShowHelp(false)} />;
   }
 
   if (done) {
@@ -38,7 +44,7 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
           {score}/{SERIES_LENGTH}
         </h2>
         <p className="text-stone-600">
-          {passed ? 'Brawo! Kropka zaliczona.' : `Do zaliczenia potrzeba ${PASS_SCORE}. Spróbuj jeszcze raz!`}
+          {passed ? 'Brawo! Kropka zaliczona.' : `Do zaliczenia potrzeba ${PASS_SCORE}. Zajrzyj do wiedzy i spróbuj jeszcze raz!`}
         </p>
         <button onClick={onExit} className="mt-2 w-full rounded-2xl bg-rose-600 py-4 text-lg font-bold text-white active:scale-[0.98]">
           Wróć do ścieżki
@@ -62,11 +68,15 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
         <span className="text-sm font-semibold text-stone-500">
           {i + 1}/{tasks.length}
         </span>
+        <button onClick={() => setShowHelp(true)} aria-label="Przypomnij wiedzę" className="rounded-full bg-sky-100 px-2.5 py-1 text-sm font-bold text-sky-800 active:scale-90">
+          📖
+        </button>
       </div>
 
       {task.kind === 'mark' && dot.kind === 'mark' && (
         <MarkView key={i} task={task} targetsLabel={dot.targets.map((t) => PARTS[t].plural).join(' i ')} question={dot.targets.map((t) => PARTS[t].question).join(' / ')} onAnswer={answered} locked={answeredThis} />
       )}
+      {task.kind === 'choose' && <ChooseView key={i} task={task} onAnswer={(ok) => answered(ok, task.answer)} locked={answeredThis} />}
       {task.kind === 'gap' && dot.kind === 'gap' && (
         <GapView key={i} task={task} rule={ORTHO_SETS[dot.set].rule} onAnswer={answered} locked={answeredThis} />
       )}
@@ -75,6 +85,62 @@ export default function Exercise({ dot, progress, onFinish, onExit }: Props) {
         <button onClick={next} className="mt-auto w-full rounded-2xl bg-stone-900 py-4 text-lg font-bold text-white active:scale-[0.98]">
           {i + 1 < tasks.length ? 'Dalej' : 'Zobacz wynik'}
         </button>
+      )}
+    </div>
+  );
+}
+
+function ChooseView({ task, onAnswer, locked }: { task: ChooseTask; onAnswer: (ok: boolean) => void; locked: boolean }) {
+  const [picked, setPicked] = useState<PartCode | null>(null);
+  const ok = picked === task.answer;
+  const word = task.tokens[task.index].text;
+
+  function pick(o: PartCode) {
+    if (locked || picked) return;
+    setPicked(o);
+    onAnswer(o === task.answer);
+  }
+
+  return (
+    <div className="mb-4 flex flex-col gap-5">
+      <h2 className="text-lg font-bold">
+        Jaką częścią mowy jest wyraz <span className="text-rose-600">„{word}”</span>?
+      </h2>
+      <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-2 text-2xl leading-relaxed">
+        {task.tokens.map((t, idx) =>
+          t.punct ? (
+            <span key={idx} className="-ml-1.5">{t.text}</span>
+          ) : (
+            <span key={idx} className={idx === task.index ? 'rounded-lg bg-rose-600 px-1.5 py-0.5 font-bold text-white' : 'px-0.5'}>
+              {t.text}
+            </span>
+          ),
+        )}
+      </p>
+      <div className="grid grid-cols-2 gap-2.5">
+        {task.options.map((o) => {
+          const state = !picked ? 'idle' : o === task.answer ? 'right' : o === picked ? 'wrong' : 'idle';
+          return (
+            <button
+              key={o}
+              onClick={() => pick(o)}
+              className={`rounded-2xl px-3 py-3.5 text-lg font-bold shadow-sm ring-1 transition active:scale-95 ${
+                state === 'right' ? 'bg-emerald-500 text-white ring-emerald-500' : state === 'wrong' ? 'bg-red-500 text-white ring-red-500' : 'bg-white ring-stone-300'
+              }`}
+            >
+              {PARTS[o].name}
+            </button>
+          );
+        })}
+      </div>
+      {picked && (
+        <div className={`rounded-xl p-3 ${ok ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>
+          {ok ? (
+            <>✅ Tak! „{word}” to {PARTS[task.answer].name}: odpowiada na pytanie <b>{PARTS[task.answer].question}</b></>
+          ) : (
+            <><b>„{word}” to {PARTS[task.answer].name}.</b> Pytanie pomocnicze: <b>{PARTS[task.answer].question}</b></>
+          )}
+        </div>
       )}
     </div>
   );

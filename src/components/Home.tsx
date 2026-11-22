@@ -2,10 +2,11 @@ import { MODULES, type Dot } from '../data/modules.ts';
 import { isUnlocked } from '../engine/path.ts';
 import { SERIES_LENGTH } from '../engine/series.ts';
 import type { Progress } from '../engine/storage.ts';
+import { InstallCard } from './PwaBanners.tsx';
 
-type Props = { progress: Progress; onPlay: (dot: Dot) => void; onStats: () => void };
+type Props = { progress: Progress; onPlay: (dot: Dot) => void; onStats: () => void; onKnowledge: () => void };
 
-export default function Home({ progress, onPlay, onStats }: Props) {
+export default function Home({ progress, onPlay, onStats, onKnowledge }: Props) {
   return (
     <>
       <header className="mb-5 flex items-center justify-between">
@@ -16,10 +17,17 @@ export default function Home({ progress, onPlay, onStats }: Props) {
             <p className="text-sm text-stone-500">gramatyka i ortografia</p>
           </div>
         </div>
-        <button onClick={onStats} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
-          📊 Wyniki
-        </button>
+        <div className="flex gap-2">
+          <button onClick={onKnowledge} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
+            📖 Wiedza
+          </button>
+          <button onClick={onStats} className="rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm ring-1 ring-stone-200 active:scale-95">
+            📊 Wyniki
+          </button>
+        </div>
       </header>
+
+      <InstallCard />
 
       <main className="flex flex-col gap-4">
         {MODULES.map((m, mi) => (
@@ -47,10 +55,10 @@ export default function Home({ progress, onPlay, onStats }: Props) {
                           dp?.passed ? 'bg-emerald-500 text-white' : open ? 'bg-rose-600 text-white' : 'bg-stone-300 text-white'
                         }`}
                       >
-                        {dp?.passed ? '✓' : open ? '▶' : '🔒'}
+                        {dp?.passed ? '✓' : !open ? '🔒' : d.kind === 'learn' ? '📖' : '▶'}
                       </span>
                       <span className="flex-1 font-semibold">{d.title}</span>
-                      {dp && (
+                      {dp && d.kind !== 'learn' && (
                         <span className="text-sm text-stone-500">
                           najlepiej {dp.best}/{SERIES_LENGTH}
                         </span>
@@ -64,7 +72,7 @@ export default function Home({ progress, onPlay, onStats }: Props) {
         ))}
       </main>
 
-      <footer className="mt-6 text-center text-xs text-stone-400">
+      <footer className="mt-6 mb-20 text-center text-xs text-stone-400">
         Twoje wyniki są zapisane tylko na tym urządzeniu. · wersja {__APP_VERSION__}
       </footer>
     </>

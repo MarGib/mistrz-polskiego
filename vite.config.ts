@@ -9,12 +9,13 @@ const APP_VERSION = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Warsa
 const CACHE_VERSION = Date.now().toString(36);
 
 /**
- * Po zbudowaniu zapisuje listę wszystkich plików aplikacji (precache.json).
- * Service worker pobiera je przy instalacji, więc aplikacja działa w całości bez internetu.
+ * Po zbudowaniu wpisuje do dist/sw.js wersję i listę wszystkich plików aplikacji.
+ * Service worker pobiera je przy instalacji, więc aplikacja działa w całości bez internetu,
+ * a zmieniony sw.js pozwala przeglądarce wykryć nowe wydanie.
  */
-function precacheManifest(): Plugin {
+function precacheServiceWorker(): Plugin {
   return {
-    name: 'mp-precache-manifest',
+    name: 'mp-precache-sw',
     apply: 'build',
     closeBundle() {
       const dist = path.resolve(import.meta.dirname, 'dist');
@@ -27,17 +28,20 @@ function precacheManifest(): Plugin {
         }
       };
       walk(dist);
-      const files2 = files.filter((f) => !/(^sw\.js$|^precache\.json$|\.map$)/.test(f)).sort();
-      fs.writeFileSync(
-        path.join(dist, 'precache.json'),
-        JSON.stringify({ version: CACHE_VERSION, appVersion: APP_VERSION, files: ['./', ...files2] }),
-      );
+      const list = ['./', ...files.filter((f) => !/(^sw\.js$|\.map$)/.test(f)).sort()];
+      const swPath = path.join(dist, 'sw.js');
+      const sw = fs
+        .readFileSync(swPath, 'utf8')
+        .replace('__CACHE_VERSION__', CACHE_VERSION)
+        .replace('__PRECACHE_FILES__', JSON.stringify(list));
+      fs.writeFileSync(swPath, sw);
+      fs.writeFileSync(path.join(dist, 'version.json'), JSON.stringify({ version: CACHE_VERSION, appVersion: APP_VERSION }));
     },
   };
 }
 
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss(), precacheManifest()],
+  plugins: [react(), tailwindcss(), precacheServiceWorker()],
   define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
 });

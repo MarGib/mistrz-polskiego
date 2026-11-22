@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SENTENCES } from '../data/sentences.ts';
 import { ORTHO_SETS } from '../data/orthography.ts';
-import { ALL_DOTS } from '../data/modules.ts';
+import { ALL_DOTS, lessonsFor } from '../data/modules.ts';
+import { LESSONS } from '../data/lessons.ts';
 import { parseGapWord, parseSentence } from './parse.ts';
 import { buildSeries, checkMark, SERIES_LENGTH, type MarkTask } from './series.ts';
 import { emptyProgress, loadProgress, recordSeries, saveProgress, STORAGE_KEY } from './storage.ts';
@@ -24,6 +25,7 @@ test('bank zdań nie ma powtórzeń', () => {
 
 test('każda kropka ma pełną serię zadań', () => {
   for (const dot of ALL_DOTS) {
+    if (dot.kind === 'learn') continue;
     assert.equal(buildSeries(dot).length, SERIES_LENGTH, `za mało zadań w kropce ${dot.id}`);
   }
 });
@@ -68,10 +70,39 @@ test('postęp: zapis, odczyt i odporność na zepsute dane', () => {
 
 test('ścieżka: kropki odblokowują się po kolei, ortografia od razu', () => {
   const p = emptyProgress();
-  assert.equal(isUnlocked('m1-r', p), true);
-  assert.equal(isUnlocked('m1-c', p), false);
-  assert.equal(isUnlocked('o1-ou', p), true);
-  assert.equal(isUnlocked('o1-rz', p), false);
-  const p2 = recordSeries(p, 'm1-r', 8, 6, []);
-  assert.equal(isUnlocked('m1-c', p2), true);
+  assert.equal(isUnlocked('m1-learn', p), true);
+  assert.equal(isUnlocked('m1-r', p), false);
+  assert.equal(isUnlocked('o1-learn-ou', p), true);
+  assert.equal(isUnlocked('o1-ou', p), false);
+  const p2 = recordSeries(p, 'm1-learn', 1, 1, []);
+  assert.equal(isUnlocked('m1-r', p2), true);
+  assert.equal(isUnlocked('m1-c', p2), false);
+});
+
+test('każda kropka ma swoje lekcje w wiedzy', () => {
+  for (const dot of ALL_DOTS) {
+    for (const id of lessonsFor(dot)) assert.ok(LESSONS[id], `brak lekcji „${id}” dla kropki ${dot.id}`);
+  }
+});
+
+test('wybór: wyróżniony wyraz ma właściwą część mowy, zdania się nie powtarzają', () => {
+  for (const dot of ALL_DOTS) {
+    if (dot.kind !== 'choose') continue;
+    for (let n = 0; n < 20; n++) {
+      const series = buildSeries(dot);
+      assert.equal(series.length, SERIES_LENGTH);
+      const seen = new Set<string>();
+      for (const t of series) {
+        assert.equal(t.kind, 'choose');
+        if (t.kind !== 'choose') continue;
+        assert.equal(t.tokens[t.index].part, t.answer);
+        assert.ok(t.options.includes(t.answer));
+        const key = t.tokens.map((x) => x.text).join(' ');
+        assert.ok(!seen.has(key), 'zdanie powtórzone w serii');
+        seen.add(key);
+      }
+      // przeplatanie: w serii są co najmniej dwie różne części mowy
+      assert.ok(new Set(series.map((t) => (t.kind === 'choose' ? t.answer : ''))).size >= 2);
+    }
+  }
 });
