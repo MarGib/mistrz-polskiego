@@ -25,7 +25,18 @@ Funkcje społeczne (grupy, ranking, wspólne konto z Tabliczką) mogą przyjść
 
 ## Stan
 
-🌱 Start projektu (listopad 2026). Kod jeszcze nie powstał.
+🌱 Szkielet (listopad 2026): ścieżka z kropkami, zadanie „zaznacz w zdaniu” (moduły 1–3), luka ó/u i rz/ż, wyniki na urządzeniu, tryb offline.
+
+Aplikacja: https://margib.github.io/mistrz-polskiego/ (na telefonie: „Dodaj do ekranu początkowego”).
+
+## Uruchomienie
+
+```bash
+npm install
+npm run dev      # praca nad kodem
+npm run check    # typy i testy
+npm run build    # wersja do publikacji
+```
 
 ## Licencja
 
